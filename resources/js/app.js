@@ -1,602 +1,388 @@
 import './bootstrap';
 
-const menuToggle = document.querySelector('.menu-toggle');
-const siteNav = document.querySelector('.site-nav');
+/* =====================================================================
+   1. WEB AUDIO API RETRO MICRO-SFX SYNTHESIZER (MUTED BY DEFAULT)
+   ===================================================================== */
+class RetroAudioEngine {
+    constructor() {
+        this.enabled = false;
+        this.ctx = null;
+    }
 
-menuToggle?.addEventListener('click', () => {
-    const isOpen = siteNav?.classList.toggle('open') ?? false;
-    menuToggle.setAttribute('aria-expanded', String(isOpen));
-});
+    toggle() {
+        this.enabled = !this.enabled;
+        if (this.enabled && !this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioCtx();
+        }
+        if (this.enabled && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+        if (this.enabled) {
+            this.playToggleOn();
+        }
+        return this.enabled;
+    }
 
-const npc = document.querySelector('.npc-companion');
-const spriteCanvas = document.querySelector('.wandering-sprite');
-const speech = document.querySelector('.npc-speech');
+    playTone(freq, duration, type = 'triangle', volume = 0.035, slideTo = null) {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
 
-if (npc && spriteCanvas && speech) {
-    const context = spriteCanvas.getContext('2d');
-    const spriteSheet = new Image();
-    const walkSheet = new Image();
-    const state = {
-        mode: 'IDLE',
-        x: 0,
-        y: 0,
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        if (slideTo) {
+            osc.frequency.exponentialRampToValueAtTime(slideTo, now + duration);
+        }
+
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + duration);
+    }
+
+    playStep() { this.playTone(135 + Math.random() * 25, 0.035, 'triangle', 0.018, 70); }
+    playJump() { this.playTone(210, 0.14, 'square', 0.022, 520); }
+    playLand() { this.playTone(120, 0.07, 'sine', 0.04, 48); }
+    playKeyClick() { this.playTone(680, 0.025, 'triangle', 0.02, 240); }
+    playToggleOn() { this.playTone(440, 0.06, 'square', 0.02, 660); }
+}
+
+const sfx = new RetroAudioEngine();
+
+/* =====================================================================
+   3. DOM-SPRITE COUPLING PHYSICS & SVG LIMB ANIMATION ENGINE
+   ===================================================================== */
+const buddyEl = document.getElementById('buddy-entity');
+const buddyVisual = document.getElementById('buddy-visual');
+const speechEl = document.getElementById('buddy-speech');
+const speechTextEl = document.getElementById('buddy-speech-text');
+const legLeft = document.getElementById('buddy-leg-left');
+const legRight = document.getElementById('buddy-leg-right');
+const armFront = document.getElementById('buddy-arm-front');
+const armBack = document.getElementById('buddy-arm-back');
+
+if (buddyEl && buddyVisual) {
+    const platforms = Array.from(document.querySelectorAll('[data-platform]'));
+
+    const buddy = {
+        x: 240,
+        y: 120,
         vx: 0,
         vy: 0,
-        direction: 1,
-        platform: null,
-        target: null,
-        actionStartedAt: 0,
-        landingUntil: 0,
-        animFrameIndex: 0,
-        animTimer: 0,
-        animState: null,
-        platformIndex: 0,
-    };
-    const frames = [[], [], [], [], []];
-    const frameLoops = {
-        IDLE: [0, 1, 4, 3],
-        WALK: [0, 1, 2, 3, 4, 5],
-        JUMP_UP: [1, 2],
-        JUMP_FALL: [3],
-        ACTION: [3, 4, 6, 7, 5],
-        DEFEAT: [0, 1, 2, 3, 4],
-    };
-    const rowFrameCounts = [8, 7, 5, 8, 5];
-    const gravity = 1850;
-    let speechTimer;
-    let lastTimestamp = 0;
-    let initialized = false;
-    let mainReady = false;
-    let walkReady = false;
-
-    const say = (message) => {
-        speech.textContent = message;
-        speech.classList.add('visible');
-        window.clearTimeout(speechTimer);
-        speechTimer = window.setTimeout(() => speech.classList.remove('visible'), 1800);
+        width: 44,
+        height: 56,
+        facing: 1,
+        grounded: false,
+        currentPlatform: null,
+        state: 'FALLING',
+        walkCycle: 0,
+        stepSoundCooldown: 0,
+        idleTimer: 0,
+        aiPatrol: true,
+        targetPlatform: null,
+        targetX: null,
+        aiDecisionTimer: 1.5
     };
 
-    const setState = (mode) => {
-        state.mode = mode;
-        state.animFrameIndex = 0;
-        state.animTimer = 0;
-        state.animState = null;
+    const keys = { left: false, right: false };
+    const gravity = 1380;
+
+    const triggerJump = () => {
+        if (!buddy.grounded) return;
+        const targetTop = buddy.targetPlatform?.getBoundingClientRect().top;
+        const requiredRise = targetTop === undefined
+            ? 0
+            : Math.max(0, buddy.y + buddy.height - targetTop + 20);
+        buddy.vy = -Math.max(560, Math.sqrt(2 * gravity * requiredRise));
+        buddy.grounded = false;
+        buddy.currentPlatform = null;
+        buddy.idleTimer = 0;
+        speechEl?.classList.remove('visible');
+        sfx.playJump();
     };
 
-    const pageBounds = (element) => {
-        const bounds = element.getBoundingClientRect();
-        return {
-            element,
-            left: bounds.left + window.scrollX,
-            right: bounds.right + window.scrollX,
-            top: bounds.top + window.scrollY,
-            width: bounds.width,
-        };
+    const showSpeech = (text) => {
+        if (!text || !speechEl || !speechTextEl) return;
+        speechTextEl.textContent = text;
+        speechEl.classList.add('visible');
     };
 
-    const platforms = () => [...document.querySelectorAll('[data-platform]')]
-        .map(pageBounds)
-        .filter((platform) => platform.width > 40);
+    const hideSpeech = () => speechEl?.classList.remove('visible');
 
-    const drawFrame = (row, frameIndex) => {
-        const frame = frames[row]?.[frameIndex];
-        if (!frame || !context) {
-            return;
-        }
+    const compressPlatform = (platformEl, footViewportX, impactSpeed) => {
+        const rect = platformEl.getBoundingClientRect();
+        const relX = (footViewportX - rect.left) / Math.max(rect.width, 1);
+        const tiltDeg = (relX - 0.5) * 2.4;
+        const pushPx = Math.min(Math.max(impactSpeed * 0.008, 2.5), 5.5);
 
-        context.imageSmoothingEnabled = false;
-        context.clearRect(0, 0, spriteCanvas.width, spriteCanvas.height);
-        context.save();
-        context.drawImage(frame, 0, 0);
-        context.restore();
+        platformEl.style.setProperty('--spring-y', `${pushPx.toFixed(1)}px`);
+        platformEl.style.setProperty('--spring-rot', `${tiltDeg.toFixed(2)}deg`);
+        sfx.playLand();
+
+        setTimeout(() => {
+            platformEl.style.setProperty('--spring-y', '0px');
+            platformEl.style.setProperty('--spring-rot', '0deg');
+        }, 130);
     };
 
-    const drawAnimation = (timestamp, deltaMs) => {
-        let animationMode = state.mode === 'PATROL' ? 'WALK' : state.mode;
+    const sendBuddyToPlatform = (platEl, customClientX = null) => {
+        if (!platEl) return;
+        const rect = platEl.getBoundingClientRect();
+        buddy.targetPlatform = platEl;
+        buddy.targetX = customClientX !== null
+            ? Math.min(Math.max(customClientX, rect.left + 26), rect.right - 26)
+            : rect.left + rect.width * (0.25 + Math.random() * 0.5);
+        buddy.idleTimer = 0;
+        hideSpeech();
 
-        if (state.landingUntil > timestamp) {
-            drawFrame(2, 4);
-            return;
+        if (rect.top < buddy.y + buddy.height - 10 && buddy.grounded) {
+            triggerJump();
         }
-
-        if (state.mode === 'SEEK') {
-            animationMode = state.vy < 0 ? 'JUMP_UP' : 'JUMP_FALL';
-        } else if (state.mode === 'FALL') {
-            animationMode = 'DEFEAT';
-        } else if (state.mode === 'ACTION') {
-            animationMode = 'ACTION';
-        } else if (state.mode === 'IDLE') {
-            animationMode = 'IDLE';
-        }
-
-        const loop = frameLoops[animationMode];
-        const fps = animationMode === 'WALK' ? 10 : animationMode === 'ACTION' ? 12 : 4;
-        const row = animationMode === 'WALK' ? 1
-            : animationMode === 'ACTION' ? 3
-                : animationMode === 'DEFEAT' ? 4 : animationMode.startsWith('JUMP') ? 2 : 0;
-
-        if (animationMode === 'JUMP_UP') {
-            drawFrame(row, loop[Math.min(state.animFrameIndex, loop.length - 1)]);
-            state.animTimer += deltaMs;
-            if (state.animTimer >= 1000 / fps) {
-                state.animTimer = 0;
-                state.animFrameIndex = Math.min(state.animFrameIndex + 1, loop.length - 1);
-            }
-            return;
-        }
-
-        if (animationMode === 'JUMP_FALL') {
-            drawFrame(row, 3);
-            return;
-        }
-
-        if (state.animState !== animationMode) {
-            state.animState = animationMode;
-            state.animFrameIndex = 0;
-            state.animTimer = 0;
-        }
-
-        state.animTimer += deltaMs;
-        while (state.animTimer >= 1000 / fps) {
-            state.animTimer -= 1000 / fps;
-            if (animationMode === 'ACTION' || animationMode === 'DEFEAT') {
-                state.animFrameIndex = Math.min(state.animFrameIndex + 1, loop.length - 1);
-            } else {
-                state.animFrameIndex = (state.animFrameIndex + 1) % loop.length;
-            }
-        }
-
-        if (animationMode === 'DEFEAT') {
-            drawFrame(row, loop[state.animFrameIndex]);
-            return;
-        }
-
-        drawFrame(row, loop[state.animFrameIndex]);
     };
 
-    const render = () => {
-        npc.style.transform = `translate3d(${state.x - window.scrollX - 32}px, ${state.y - window.scrollY - 64}px, 0)`;
-        spriteCanvas.style.transform = state.direction < 0 ? 'scaleX(-1)' : 'scaleX(1)';
-    };
-
-    const choosePlatform = () => {
-        const available = platforms();
-        if (!available.length) {
-            return null;
-        }
-
-        const visible = available.filter((platform) => {
-            const viewportTop = platform.top - window.scrollY;
-            return viewportTop < window.innerHeight + 80 && viewportTop > -100;
+    platforms.forEach((plat) => {
+        plat.addEventListener('click', (e) => {
+            if (e.target.closest('button') || e.target.closest('a')) return;
+            sendBuddyToPlatform(plat, e.clientX);
         });
-        const choices = visible.length ? visible : available;
-        const platform = choices[state.platformIndex % choices.length];
-        state.platformIndex += 1;
-        return platform;
-    };
+    });
 
-    const landOn = (platform) => {
-        state.platform = platform;
-        state.y = platform.top;
-        state.x = Math.max(platform.left + 18, Math.min(state.x, platform.right - 18));
-        state.vy = 0;
-    };
-
-    const startPatrol = (platform = state.platform) => {
-        if (!platform) {
-            return;
+    window.addEventListener('keydown', (e) => {
+        if (e.target.matches('input, textarea')) return;
+        const k = e.key.toLowerCase();
+        if (k === 'a' || e.key === 'ArrowLeft') { keys.left = true; buddy.targetPlatform = null; }
+        if (k === 'd' || e.key === 'ArrowRight') { keys.right = true; buddy.targetPlatform = null; }
+        if (k === 'w' || e.key === 'ArrowUp' || e.code === 'Space') {
+            if (e.code === 'Space' && document.activeElement === document.body) e.preventDefault();
+            triggerJump();
         }
-        landOn(platform);
-        state.vx = 70 * state.direction;
-        setState('PATROL');
-    };
+        if (k === 'g') toggleXrayMode();
+    });
 
-    const startAction = (target) => {
-        state.target = target;
-        state.actionStartedAt = performance.now();
-        state.vx = 0;
-        setState('ACTION');
-        say('Action complete!');
-    };
+    window.addEventListener('keyup', (e) => {
+        const k = e.key.toLowerCase();
+        if (k === 'a' || e.key === 'ArrowLeft') keys.left = false;
+        if (k === 'd' || e.key === 'ArrowRight') keys.right = false;
+    });
 
-    const seek = (element) => {
-        const target = pageBounds(element);
-        const targetPlatform = element.matches('[data-platform]')
-            ? target
-            : { ...target, left: target.left, right: target.right };
-        const targetX = Math.max(target.left + 18, Math.min(
-            target.left + target.width / 2,
-            target.right - 18,
-        ));
-        const distance = targetX - state.x;
-        state.target = targetPlatform;
-        state.platform = targetPlatform;
-        state.vx = Math.max(-480, Math.min(480, distance * 1.15));
-        state.vy = -690;
-        state.direction = state.vx < 0 ? -1 : 1;
-        setState('SEEK');
-        say('Following your move!');
-    };
+    let lastFrameTime = performance.now();
+    let fpsFrames = 0;
+    let fpsLastCheck = performance.now();
 
-    const respawn = () => {
-        const topPlatform = platforms()[0];
-        if (!topPlatform) {
-            return;
-        }
-        state.x = topPlatform.left + topPlatform.width / 2;
-        state.platform = topPlatform;
-        state.y = topPlatform.top;
-        state.actionStartedAt = performance.now();
-        setState('IDLE');
-        say('Back on the page!');
-    };
+    const hudFps = document.getElementById('hud-fps');
+    const hudX = document.getElementById('hud-x');
+    const hudY = document.getElementById('hud-y');
+    const hudVx = document.getElementById('hud-vx');
+    const hudVy = document.getElementById('hud-vy');
+    const hudState = document.getElementById('hud-state');
+    const hudPlatform = document.getElementById('hud-platform');
 
-    const updatePhysics = (delta, timestamp) => {
-        if (!state.platform && state.mode !== 'FALL') {
-            startPatrol(choosePlatform());
+    function stepPhysics(now) {
+        const dt = Math.min((now - lastFrameTime) / 1000, 0.05);
+        lastFrameTime = now;
+
+        fpsFrames++;
+        if (now - fpsLastCheck >= 500) {
+            const fps = Math.round((fpsFrames * 1000) / (now - fpsLastCheck));
+            if (hudFps) hudFps.textContent = `${fps} FPS`;
+            fpsFrames = 0;
+            fpsLastCheck = now;
         }
 
-        if (state.mode === 'IDLE') {
-            if (timestamp - state.actionStartedAt > 900) {
-                startPatrol(state.platform);
-            }
-        } else if (state.mode === 'PATROL') {
-            const platform = pageBounds(state.platform.element);
-            state.platform = platform;
-            state.x += state.vx * delta;
+        const prevBottom = buddy.y + buddy.height;
+        const moveSpeed = 235;
+        let moveDir = 0;
+        if (keys.left) moveDir -= 1;
+        if (keys.right) moveDir += 1;
 
-            if (state.x >= platform.right - 18) {
-                state.x = platform.right - 18;
-                state.direction = -1;
-                state.vx = -70;
-            } else if (state.x <= platform.left + 18) {
-                state.x = platform.left + 18;
-                state.direction = 1;
-                state.vx = 70;
-            }
-            state.y = platform.top;
-        } else if (state.mode === 'SEEK' || state.mode === 'FALL') {
-            state.vy += gravity * delta;
-            state.x += state.vx * delta;
-            state.y += state.vy * delta;
+        if (moveDir === 0 && buddy.targetPlatform) {
+            const tRect = buddy.targetPlatform.getBoundingClientRect();
+            const desiredX = buddy.targetX ?? (tRect.left + tRect.width * 0.5);
+            const centerX = buddy.x + buddy.width * 0.5;
+            const diffX = desiredX - centerX;
 
-            if (state.mode === 'SEEK' && state.vy >= 0 && state.y >= state.platform.top) {
-                state.x = Math.max(state.platform.left + 18, Math.min(state.x, state.platform.right - 18));
-                landOn(state.platform);
-                state.landingUntil = timestamp + 240;
-                startAction(state.target.element);
-            } else if (state.y - window.scrollY > window.innerHeight + 100) {
-                state.actionStartedAt = timestamp;
-                setState('FALL');
-            }
-        } else if (state.mode === 'ACTION') {
-            if (timestamp - state.actionStartedAt > 760) {
-                startPatrol(state.platform);
-            }
-        }
-
-        if (state.mode === 'FALL' && timestamp - state.actionStartedAt > 900) {
-            respawn();
-        }
-    };
-
-    const tick = (timestamp) => {
-        const delta = Math.min(0.033, (timestamp - lastTimestamp) / 1000 || 0);
-        lastTimestamp = timestamp;
-        updatePhysics(delta, timestamp);
-        drawAnimation(timestamp);
-        render();
-        window.requestAnimationFrame(tick);
-    };
-
-    const normalizeFrame = (sourceContext, pixelsInFrame, left, top, right, bottom) => {
-        const targetHeight = 80;
-        let minX = right - left;
-        let minY = bottom - top;
-        let maxX = 0;
-        let maxY = 0;
-        const width = right - left;
-        const height = bottom - top;
-
-        for (let y = 0; y < height; y += 1) {
-            for (let x = 0; x < width; x += 1) {
-                if (pixelsInFrame.data[((y * width + x) * 4) + 3] > 20) {
-                    minX = Math.min(minX, x);
-                    minY = Math.min(minY, y);
-                    maxX = Math.max(maxX, x);
-                    maxY = Math.max(maxY, y);
+            if (Math.abs(diffX) > 10) {
+                moveDir = Math.sign(diffX);
+                if (buddy.grounded && tRect.top < buddy.y + buddy.height - 16 && Math.abs(diffX) < 220) {
+                    triggerJump();
                 }
+            } else if (buddy.grounded && buddy.currentPlatform === buddy.targetPlatform) {
+                buddy.targetPlatform = null;
             }
-        }
-
-        if (minX > maxX || minY > maxY) {
-            return null;
-        }
-
-        const frameCanvas = document.createElement('canvas');
-        frameCanvas.width = 96;
-        frameCanvas.height = 96;
-        const frameContext = frameCanvas.getContext('2d');
-        frameContext.imageSmoothingEnabled = false;
-        const spriteWidth = maxX - minX + 1;
-        const spriteHeight = maxY - minY + 1;
-        const frameImage = frameContext.createImageData(spriteWidth, spriteHeight);
-
-        for (let y = 0; y < spriteHeight; y += 1) {
-            for (let x = 0; x < spriteWidth; x += 1) {
-                const sourceIndex = (((minY + y) * width + minX + x) * 4);
-                const destinationIndex = ((y * spriteWidth + x) * 4);
-                frameImage.data[destinationIndex] = pixelsInFrame.data[sourceIndex];
-                frameImage.data[destinationIndex + 1] = pixelsInFrame.data[sourceIndex + 1];
-                frameImage.data[destinationIndex + 2] = pixelsInFrame.data[sourceIndex + 2];
-                frameImage.data[destinationIndex + 3] = pixelsInFrame.data[sourceIndex + 3];
-            }
-        }
-
-        let torsoMinX = spriteWidth;
-        let torsoMaxX = 0;
-        const torsoStart = Math.floor(spriteHeight * 0.45);
-        for (let y = torsoStart; y < spriteHeight; y += 1) {
-            for (let x = 0; x < spriteWidth; x += 1) {
-                if (frameImage.data[((y * spriteWidth + x) * 4) + 3] > 20) {
-                    torsoMinX = Math.min(torsoMinX, x);
-                    torsoMaxX = Math.max(torsoMaxX, x);
-                }
-            }
-        }
-
-        const localTorsoCenterX = (torsoMinX + torsoMaxX) / 2;
-        const scale = targetHeight / spriteHeight;
-        const scaledWidth = Math.round(spriteWidth * scale);
-        const scaledHeight = Math.round(spriteHeight * scale);
-        const sourceSprite = document.createElement('canvas');
-        sourceSprite.width = spriteWidth;
-        sourceSprite.height = spriteHeight;
-        const sourceSpriteContext = sourceSprite.getContext('2d');
-        sourceSpriteContext.imageSmoothingEnabled = false;
-        sourceSpriteContext.putImageData(frameImage, 0, 0);
-        frameContext.putImageData(
-            frameContext.createImageData(96, 96),
-            0,
-            0,
-        );
-        frameContext.drawImage(
-            sourceSprite,
-            0,
-            0,
-            spriteWidth,
-            spriteHeight,
-            Math.round(48 - (localTorsoCenterX * scale)),
-            Math.round(92 - scaledHeight),
-            scaledWidth,
-            scaledHeight,
-        );
-        return frameCanvas;
-    };
-
-    const keyCanvas = (image, labelCutoff = 0) => {
-        const source = document.createElement('canvas');
-        source.width = image.naturalWidth;
-        source.height = image.naturalHeight;
-        const sourceContext = source.getContext('2d', { willReadFrequently: true });
-        sourceContext.imageSmoothingEnabled = false;
-        sourceContext.drawImage(image, 0, 0);
-        const imageData = sourceContext.getImageData(0, 0, source.width, source.height);
-        const pixels = imageData.data;
-        const background = {
-            red: pixels[0],
-            green: pixels[1],
-            blue: pixels[2],
-        };
-
-        for (let index = 0; index < pixels.length; index += 4) {
-            const x = (index / 4) % source.width;
-            const red = pixels[index];
-            const green = pixels[index + 1];
-            const blue = pixels[index + 2];
-            const redDelta = red - background.red;
-            const greenDelta = green - background.green;
-            const blueDelta = blue - background.blue;
-            const distance = Math.sqrt(
-                (redDelta * redDelta) + (greenDelta * greenDelta) + (blueDelta * blueDelta),
-            );
-
-            if (x < labelCutoff || distance < 40) {
-                pixels[index + 3] = 0;
-            } else if (distance < 55) {
-                const alpha = ((distance - 40) / 15) * 255;
-                const edgeFactor = alpha / 255;
-                pixels[index] = Math.round(red * edgeFactor);
-                pixels[index + 1] = Math.round(green * edgeFactor);
-                pixels[index + 2] = Math.round(blue * edgeFactor);
-                pixels[index + 3] = Math.round(alpha);
-            }
-        }
-
-        sourceContext.putImageData(imageData, 0, 0);
-        return { source, sourceContext, pixels };
-    };
-
-    const sliceWalkSheet = () => {
-        const { source, sourceContext, pixels } = keyCanvas(walkSheet);
-        const activeColumns = [];
-
-        for (let x = 0; x < source.width; x += 1) {
-            let active = false;
-            for (let y = 0; y < source.height && !active; y += 1) {
-                if (pixels[((y * source.width + x) * 4) + 3] > 20) {
-                    active = true;
-                }
-            }
-            if (active) {
-                activeColumns.push(x);
-            }
-        }
-
-        const groups = [];
-        let start = activeColumns[0];
-        let previous = start;
-        activeColumns.slice(1).forEach((column) => {
-            if (column - previous > 24) {
-                groups.push([start, previous + 1]);
-                start = column;
-            }
-            previous = column;
-        });
-        if (start !== undefined) {
-            groups.push([start, previous + 1]);
-        }
-
-        const walkFrames = groups.map(([left, right]) => {
-            const framePixels = sourceContext.getImageData(left, 0, right - left, source.height);
-            return {
-                left,
-                right,
-                pixels: framePixels,
-                width: right - left,
-                height: source.height,
-            };
-        }).filter((group) => {
-            let minX = group.width;
-            let minY = group.height;
-            let maxX = 0;
-            let maxY = 0;
-            for (let y = 0; y < group.height; y += 1) {
-                for (let x = 0; x < group.width; x += 1) {
-                    if (group.pixels.data[((y * group.width + x) * 4) + 3] > 20) {
-                        minX = Math.min(minX, x);
-                        minY = Math.min(minY, y);
-                        maxX = Math.max(maxX, x);
-                        maxY = Math.max(maxY, y);
-                    }
-                }
-            }
-            return maxX - minX >= 20 && maxY - minY >= 20;
-        }).slice(0, 6);
-
-        frames[1] = walkFrames.map((frame) => (
-            normalizeFrame(sourceContext, frame.pixels, 0, 0, frame.width, frame.height)
-        )).filter(Boolean);
-        walkReady = frames[1].length === 6;
-        maybeStart();
-    };
-
-    const maybeStart = () => {
-        if (initialized || !mainReady || !walkReady) {
-            return;
-        }
-        initialized = true;
-        const first = choosePlatform();
-        if (first) {
-            state.x = first.left + first.width / 2;
-            landOn(first);
-            state.actionStartedAt = performance.now();
-            setState('IDLE');
-            window.requestAnimationFrame(tick);
-        }
-    };
-
-    const sliceSpriteSheet = () => {
-        const labelCutoff = Math.floor(spriteSheet.naturalWidth * 0.16);
-        const { source, sourceContext, pixels } = keyCanvas(spriteSheet, labelCutoff);
-        const rowHeight = source.height / 5;
-
-        for (let row = 0; row < 5; row += 1) {
-            const top = Math.floor(row * rowHeight);
-            const bottom = Math.floor((row + 1) * rowHeight);
-            const activeColumns = [];
-            for (let x = labelCutoff; x < source.width; x += 1) {
-                let active = false;
-                for (let y = top; y < bottom && !active; y += 1) {
-                    if (pixels[((y * source.width + x) * 4) + 3] > 20) {
-                        active = true;
-                    }
-                }
-                if (active) {
-                    activeColumns.push(x);
-                }
-            }
-
-            const frameCount = rowFrameCounts[row];
-            const firstColumn = activeColumns[0];
-            const lastColumn = activeColumns[activeColumns.length - 1];
-            let centers = Array.from({ length: frameCount }, (_, index) => (
-                firstColumn + ((lastColumn - firstColumn) * (index + 0.5) / frameCount)
-            ));
-
-            for (let iteration = 0; iteration < 8; iteration += 1) {
-                const buckets = centers.map(() => []);
-                activeColumns.forEach((column) => {
-                    const nearest = centers.reduce((best, center, index) => (
-                        Math.abs(column - center) < Math.abs(column - centers[best]) ? index : best
-                    ), 0);
-                    buckets[nearest].push(column);
+        } else if (moveDir === 0 && buddy.aiPatrol) {
+            buddy.aiDecisionTimer -= dt;
+            if (buddy.aiDecisionTimer <= 0) {
+                buddy.aiDecisionTimer = 3.2 + Math.random() * 2.5;
+                const visiblePlats = platforms.filter((p) => {
+                    const r = p.getBoundingClientRect();
+                    return r.top > 70 && r.top < window.innerHeight - 40 && r.width > 80;
                 });
-                centers = buckets.map((bucket, index) => (
-                    bucket.length ? bucket.reduce((sum, column) => sum + column, 0) / bucket.length : centers[index]
-                ));
+                const pool = visiblePlats.length ? visiblePlats : platforms;
+                const randomPlat = pool[Math.floor(Math.random() * pool.length)];
+                if (randomPlat) sendBuddyToPlatform(randomPlat);
             }
+        }
 
-            const groups = centers.map((center, index) => {
-                const previousCenter = index ? centers[index - 1] : labelCutoff;
-                const nextCenter = index < centers.length - 1 ? centers[index + 1] : source.width;
-                const left = Math.max(labelCutoff, Math.floor((previousCenter + center) / 2));
-                const right = Math.min(source.width, Math.ceil((center + nextCenter) / 2));
-                return [left, right];
-            });
+        if (moveDir !== 0) {
+            buddy.vx = moveDir * moveSpeed;
+            buddy.facing = moveDir;
+            buddy.idleTimer = 0;
+            hideSpeech();
+        } else {
+            buddy.vx *= 0.78;
+            if (Math.abs(buddy.vx) < 4) buddy.vx = 0;
+        }
 
-            groups.forEach(([left, right]) => {
-                const pixelsInFrame = sourceContext.getImageData(left, top, right - left, bottom - top);
-                let minX = right - left;
-                let minY = bottom - top;
-                let maxX = 0;
-                let maxY = 0;
-                for (let y = 0; y < bottom - top; y += 1) {
-                    for (let x = 0; x < right - left; x += 1) {
-                        if (pixelsInFrame.data[((y * (right - left) + x) * 4) + 3] > 0) {
-                            minX = Math.min(minX, x);
-                            minY = Math.min(minY, y);
-                            maxX = Math.max(maxX, x);
-                            maxY = Math.max(maxY, y);
-                        }
-                    }
+        buddy.x += buddy.vx * dt;
+        const maxX = window.innerWidth - buddy.width - 8;
+        if (buddy.x < 8) { buddy.x = 8; buddy.vx = 0; }
+        if (buddy.x > maxX) { buddy.x = maxX; buddy.vx = 0; }
+
+        buddy.vy += gravity * dt;
+        buddy.y += buddy.vy * dt;
+
+        let landedPlatform = null;
+        const footX = buddy.x + buddy.width * 0.5;
+        const newBottom = buddy.y + buddy.height;
+
+        if (buddy.vy >= 0) {
+            for (const plat of platforms) {
+                const rect = plat.getBoundingClientRect();
+                if (rect.bottom < 0 || rect.top > window.innerHeight || rect.width < 40) continue;
+
+                const withinX = footX >= rect.left + 8 && footX <= rect.right - 8;
+                const crossedTop = prevBottom <= rect.top + 12 && newBottom >= rect.top;
+
+                if (withinX && crossedTop) {
+                    landedPlatform = plat;
+                    buddy.y = rect.top - buddy.height;
+                    if (!buddy.grounded) compressPlatform(plat, footX, buddy.vy);
+                    buddy.vy = 0;
+                    buddy.grounded = true;
+                    buddy.currentPlatform = plat;
+                    break;
                 }
-                const width = maxX - minX + 1;
-                const height = maxY - minY + 1;
-                const frameImage = sourceContext.getImageData(left + minX, top + minY, width, height);
-                const frameCanvas = normalizeFrame(
-                    sourceContext,
-                    frameImage,
-                    0,
-                    0,
-                    width,
-                    height,
-                );
-                frames[row].push(frameCanvas);
-            });
+            }
         }
 
-        mainReady = frames.every((row, rowIndex) => row.length >= rowFrameCounts[rowIndex]);
-        maybeStart();
-    };
-
-    document.addEventListener('click', (event) => {
-        const target = event.target.closest('a, button, .project-card, [data-platform]');
-        if (!target || target === npc || npc.contains(target)) {
-            return;
+        const floorY = window.innerHeight - 14;
+        if (!landedPlatform && newBottom >= floorY) {
+            buddy.y = floorY - buddy.height;
+            buddy.vy = 0;
+            buddy.grounded = true;
+            buddy.currentPlatform = null;
+        } else if (!landedPlatform) {
+            buddy.grounded = false;
+            buddy.currentPlatform = null;
         }
-        seek(target);
+
+        platforms.forEach((plat) => {
+            const rect = plat.getBoundingClientRect();
+            const localX = footX - rect.left;
+            const distY = Math.abs((buddy.y + buddy.height) - rect.top);
+            const withinHoriz = footX >= rect.left - 30 && footX <= rect.right + 30;
+
+            if (withinHoriz && distY < 90) {
+                const intensity = Math.max(0, 1 - distY / 90);
+                plat.style.setProperty('--foot-x', `${localX.toFixed(1)}px`);
+                plat.style.setProperty('--foot-intensity', intensity.toFixed(2));
+            } else {
+                plat.style.setProperty('--foot-intensity', '0');
+            }
+        });
+
+        if (!buddy.grounded) {
+            buddy.state = buddy.vy < 0 ? 'JUMPING' : 'FALLING';
+            legLeft.style.transform = 'translateY(-1.5px)';
+            legRight.style.transform = 'translateY(1px)';
+            armFront.style.transform = 'rotate(-28deg)';
+            armBack.style.transform = 'rotate(22deg)';
+        } else if (Math.abs(buddy.vx) > 15) {
+            buddy.state = 'WALKING';
+            buddy.walkCycle += dt * 16;
+            const swing = Math.sin(buddy.walkCycle);
+            legLeft.style.transform = `translateY(${(swing * -2.2).toFixed(1)}px)`;
+            legRight.style.transform = `translateY(${(swing * 2.2).toFixed(1)}px)`;
+            armFront.style.transform = `rotate(${(swing * 18).toFixed(1)}deg)`;
+            armBack.style.transform = `rotate(${(-swing * 18).toFixed(1)}deg)`;
+
+            buddy.stepSoundCooldown -= dt;
+            if (buddy.stepSoundCooldown <= 0) {
+                sfx.playStep();
+                buddy.stepSoundCooldown = 0.22;
+            }
+        } else {
+            buddy.state = 'IDLE';
+            const breathe = Math.sin(now * 0.004) * 0.8;
+            legLeft.style.transform = 'translateY(0px)';
+            legRight.style.transform = 'translateY(0px)';
+            armFront.style.transform = `translateY(${breathe.toFixed(1)}px)`;
+            armBack.style.transform = `translateY(${breathe.toFixed(1)}px)`;
+
+            buddy.idleTimer += dt;
+            if (buddy.idleTimer > 1.1 && buddy.currentPlatform) {
+                const msg = buddy.currentPlatform.getAttribute('data-speech') || 'SYSTEM READY!';
+                showSpeech(msg);
+            }
+        }
+
+        buddyEl.style.transform = `translate3d(${buddy.x.toFixed(1)}px, ${buddy.y.toFixed(1)}px, 0)`;
+        buddyVisual.style.transform = `scaleX(${buddy.facing})`;
+
+        if (document.body.classList.contains('xray-mode')) {
+            if (hudX) hudX.textContent = Math.round(buddy.x);
+            if (hudY) hudY.textContent = Math.round(buddy.y);
+            if (hudVx) hudVx.textContent = buddy.vx.toFixed(1);
+            if (hudVy) hudVy.textContent = buddy.vy.toFixed(1);
+            if (hudState) hudState.textContent = buddy.state;
+            if (hudPlatform) {
+                hudPlatform.textContent = buddy.currentPlatform
+                    ? (buddy.currentPlatform.getAttribute('data-platform-name') || 'PLATFORM')
+                    : 'AIRBORNE';
+            }
+        }
+
+        requestAnimationFrame(stepPhysics);
+    }
+
+    const btnXray = document.getElementById('btn-xray');
+    const xrayLabel = document.getElementById('xray-label');
+    function toggleXrayMode() {
+        const isOn = document.body.classList.toggle('xray-mode');
+        if (xrayLabel) xrayLabel.textContent = isOn ? 'ON' : 'OFF';
+        btnXray?.classList.toggle('active', isOn);
+        sfx.playKeyClick();
+    }
+    btnXray?.addEventListener('click', toggleXrayMode);
+
+    const btnPatrol = document.getElementById('btn-patrol');
+    const patrolLabel = document.getElementById('patrol-label');
+    btnPatrol?.addEventListener('click', () => {
+        buddy.aiPatrol = !buddy.aiPatrol;
+        if (patrolLabel) patrolLabel.textContent = buddy.aiPatrol ? 'ON' : 'OFF';
+        btnPatrol.classList.toggle('active', buddy.aiPatrol);
+        if (!buddy.aiPatrol) buddy.targetPlatform = null;
+        sfx.playKeyClick();
     });
 
-    window.addEventListener('resize', () => {
-        if (state.platform) {
-            state.platform = pageBounds(state.platform.element);
-        }
-        render();
+    const btnSfx = document.getElementById('btn-sfx');
+    const sfxLabel = document.getElementById('sfx-label');
+    btnSfx?.addEventListener('click', () => {
+        const active = sfx.toggle();
+        if (sfxLabel) sfxLabel.textContent = active ? 'ON' : 'OFF';
+        btnSfx.classList.toggle('active', active);
     });
 
-    spriteSheet.addEventListener('load', sliceSpriteSheet, { once: true });
-    walkSheet.addEventListener('load', sliceWalkSheet, { once: true });
-    spriteSheet.src = '/assets/portfolio-buddy-sheet.jpg';
-    walkSheet.src = '/images/buddy-walk.png';
+    const firstPlat = platforms[0];
+    if (firstPlat) {
+        const rect = firstPlat.getBoundingClientRect();
+        buddy.x = rect.left + 64;
+        buddy.y = Math.max(80, rect.top - buddy.height - 20);
+    }
+    requestAnimationFrame(stepPhysics);
 }
