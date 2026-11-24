@@ -2,10 +2,11 @@
 <meta charset="utf-8">
 <meta content="width=device-width, initial-scale=1" name="viewport">
 <title>Fhilip.dev | Software Engineer &amp; Student Portfolio</title>
+<meta name="description" content="Fhilip Briones is a Computer Science student and web developer at UST–Legazpi, building practical, user-focused software and web applications.">
 @vite(['resources/css/app.css', 'resources/js/app.js'])
 <link href="https://fonts.googleapis.com" rel="preconnect">
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Press+Start+2P&amp;display=swap" rel="stylesheet">
 <style>
 :root {
   --bg-deep: #050d18;
@@ -251,6 +252,9 @@ nav {
   letter-spacing: -0.03em;
   margin-bottom: 18px;
 }
+h1[data-platform] {
+  width: fit-content;
+}
 .hero h1 .gradient-text {
   background: linear-gradient(135deg, #ffffff 30%, #a2ecdf 70%, #2fe3c9 100%);
   -webkit-background-clip: text;
@@ -332,6 +336,7 @@ nav {
   border-color: var(--border-focus);
   color: var(--cyan-accent);
   background: rgba(47, 227, 201, 0.08);
+  transform: translateY(-2px);
 }
 .stack-chip svg {
   width: 13px;
@@ -570,6 +575,15 @@ section {
   position: relative;
   overflow: hidden;
   border-right: 1px solid var(--border-subtle);
+}
+.project-screenshot {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid rgba(47, 227, 201, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.5);
 }
 .mockup-window {
   background: #081d31;
@@ -1062,55 +1076,219 @@ footer .wrap {
   .about-grid { grid-template-columns: 1fr; }
   .certs-grid { grid-template-columns: 1fr; }
   .edu-row { grid-template-columns: 1fr; gap: 12px; }
+}
+
+@media (max-width: 1100px) {
   .nav-links { display: none; }
 }
 
-.npc-companion {
-  position: fixed;
+@media (max-width: 640px) {
+  nav {
+    height: auto;
+    min-height: 72px;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    padding-block: 10px;
+  }
+  .nav-actions {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+  .hud-toggle-btn {
+    padding: 5px 8px;
+    font-size: 0.62rem;
+  }
+}
+
+/* ==========================================================================
+   1. DOM-SPRITE COUPLING: PHYSICAL PLATFORMS & FOOT-GLOW
+   ========================================================================== */
+[data-platform] {
+  --foot-x: 50%;
+  --foot-intensity: 0;
+  --spring-y: 0px;
+  --spring-rot: 0deg;
+  position: relative;
+  transform: translate3d(0, var(--spring-y), 0) rotate(var(--spring-rot));
+  transition: transform 0.38s cubic-bezier(0.22, 1.35, 0.36, 1), border-color 0.25s ease, box-shadow 0.25s ease;
+  will-change: transform;
+  cursor: pointer;
+}
+
+[data-platform]::before {
+  content: '';
+  position: absolute;
+  top: -1px;
   left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: radial-gradient(
+    110px circle at var(--foot-x) 50%,
+    rgba(47, 227, 201, calc(var(--foot-intensity) * 0.95)),
+    rgba(56, 189, 248, calc(var(--foot-intensity) * 0.55)) 45%,
+    transparent 80%
+  );
+  pointer-events: none;
+  z-index: 20;
+}
+
+[data-platform]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    180px circle at var(--foot-x) 0%,
+    rgba(47, 227, 201, calc(var(--foot-intensity) * 0.14)),
+    transparent 75%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ==========================================================================
+   2. X-RAY HITBOX / INSPECT MODE OVERLAYS
+   ========================================================================== */
+body.xray-mode [data-platform] {
+  outline: 1.5px dashed #f43f5e !important;
+  outline-offset: 2px;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(244, 63, 94, 0.04),
+    rgba(244, 63, 94, 0.04) 8px,
+    transparent 8px,
+    transparent 16px
+  );
+}
+
+body.xray-mode #buddy-hitbox-box {
+  opacity: 1 !important;
+}
+
+.hud-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 38, 64, 0.65);
+  border: 1px solid rgba(47, 227, 201, 0.22);
+  color: var(--text-muted);
+  padding: 6px 11px;
+  border-radius: 7px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.hud-toggle-btn:hover,
+.hud-toggle-btn.active {
+  color: var(--cyan-accent);
+  border-color: var(--cyan-accent);
+  background: rgba(47, 227, 201, 0.12);
+}
+
+/* ==========================================================================
+   3. PIXEL BUDDY SVG SPRITE & RETRO SPEECH BUBBLE
+   ========================================================================== */
+#buddy-entity {
+  position: fixed;
   top: 0;
+  left: 0;
+  width: 44px;
+  height: 56px;
   z-index: 60;
-  width: 64px;
-  height: 96px;
   pointer-events: none;
   will-change: transform;
 }
 
-.wandering-sprite {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 64px;
-  height: 64px;
-  image-rendering: pixelated;
-  transform-origin: center bottom;
-  filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.45));
+#buddy-visual {
+  width: 100%;
+  height: 100%;
+  transform-origin: bottom center;
+  transition: transform 0.12s ease-out;
 }
 
-.npc-speech {
+#buddy-speech {
   position: absolute;
-  bottom: 82px;
+  bottom: 62px;
   left: 50%;
-  min-width: max-content;
-  max-width: 190px;
-  padding: 6px 9px;
-  border: 1px solid rgba(47, 227, 201, 0.35);
-  border-radius: 7px;
-  background: rgba(5, 15, 26, 0.92);
-  color: var(--text-main);
-  font: 0.66rem/1.35 var(--mono);
+  transform: translateX(-50%) translateY(6px) scale(0.92);
   opacity: 0;
-  transform: translate(-50%, 6px);
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+  width: max-content;
+  max-width: 230px;
+  background: #0b0f19;
+  border: 2px solid #2fe3c9;
+  box-shadow: 0 0 0 2px #050d18, 4px 4px 0px rgba(47, 227, 201, 0.35);
+  padding: 8px 10px;
+  border-radius: 6px;
+  transition: opacity 0.25s ease, transform 0.28s cubic-bezier(0.22, 1.35, 0.36, 1);
+  z-index: 70;
 }
 
-.npc-speech.visible {
+#buddy-speech.visible {
   opacity: 1;
-  transform: translate(-50%, 0);
+  transform: translateX(-50%) translateY(0) scale(1);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .wandering-sprite { opacity: 0.7; }
+#buddy-speech::after {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 7px 6px 0;
+  border-style: solid;
+  border-color: #2fe3c9 transparent transparent transparent;
+}
+
+#buddy-speech-text {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  line-height: 1.6;
+  color: #a5f3fc;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+#xray-telemetry-hud {
+  position: fixed;
+  top: 84px;
+  right: 16px;
+  z-index: 65;
+  width: 250px;
+  background: rgba(5, 13, 24, 0.94);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(244, 63, 94, 0.55);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: #e2e8f0;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65);
+  display: none;
+}
+body.xray-mode #xray-telemetry-hud {
+  display: block;
+}
+
+.project-card[data-platform]::before {
+  opacity: 1;
+}
+.project-card[data-platform]:hover {
+  transform: translate3d(0, calc(-4px + var(--spring-y)), 0) rotate(var(--spring-rot));
+}
+.project-card[data-platform]:hover::before {
+  background:
+    radial-gradient(
+      110px circle at var(--foot-x) 50%,
+      rgba(47, 227, 201, calc(var(--foot-intensity) * 0.95)),
+      rgba(56, 189, 248, calc(var(--foot-intensity) * 0.55)) 45%,
+      transparent 80%
+    ),
+    linear-gradient(90deg, transparent, rgba(47, 227, 201, 0.6), transparent);
 }
 </style>
 </head>
@@ -1120,27 +1298,103 @@ footer .wrap {
 <div class="glow-orb-2"></div>
 
 </div>
-<div class="npc-companion" aria-hidden="true">
-<div class="npc-speech"></div>
-<canvas class="wandering-sprite" width="96" height="96"></canvas>
+<!-- PIXEL BUDDY SVG ENTITY -->
+<div id="buddy-entity" aria-hidden="true">
+  <div id="buddy-speech">
+    <p id="buddy-speech-text">WELCOME! CLICK ANY CARD TO WARP ME THERE.</p>
+  </div>
+
+  <div id="buddy-hitbox-box" style="opacity:0; transition:opacity 0.2s; position:absolute; inset:0; border:1px solid #f43f5e; background:rgba(244,63,94,0.1);">
+    <span style="position:absolute; top:-14px; left:0; font-family:var(--mono); font-size:8px; background:#f43f5e; color:#fff; padding:0 3px;">44x56</span>
+  </div>
+
+  <div id="buddy-visual">
+    <svg viewBox="0 0 22 28" width="44" height="56" shape-rendering="crispEdges" style="overflow:visible; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.85));">
+      <!-- Hair -->
+      <rect x="6" y="1" width="10" height="2" fill="#18181b"/>
+      <rect x="5" y="2" width="12" height="3" fill="#27272a"/>
+      <rect x="5" y="5" width="2" height="3" fill="#18181b"/>
+      <rect x="15" y="5" width="2" height="2" fill="#18181b"/>
+      <!-- Face -->
+      <rect x="7" y="4" width="8" height="6" fill="#f1c29b"/>
+      <rect x="10" y="6" width="1" height="2" fill="#090b10"/>
+      <rect x="13" y="6" width="1" height="2" fill="#090b10"/>
+      <rect x="9" y="6" width="6" height="1" fill="#2fe3c9" fill-opacity="0.35"/>
+      <!-- Neck -->
+      <rect x="9" y="10" width="4" height="1" fill="#dba67b"/>
+      <!-- Navy Pinstripe Jacket + Black Shirt -->
+      <rect x="9" y="11" width="4" height="8" fill="#090b10"/>
+      <rect x="6" y="11" width="3" height="8" fill="#172554"/>
+      <rect x="13" y="11" width="3" height="8" fill="#172554"/>
+      <rect x="7" y="12" width="1" height="6" fill="#3b82f6" fill-opacity="0.55"/>
+      <rect x="14" y="12" width="1" height="6" fill="#3b82f6" fill-opacity="0.55"/>
+      <rect x="8" y="11" width="1" height="3" fill="#1e3a8a"/>
+      <rect x="13" y="11" width="1" height="3" fill="#1e3a8a"/>
+      <!-- Arms -->
+      <g id="buddy-arm-back">
+        <rect x="4" y="11" width="2" height="6" fill="#172554"/>
+        <rect x="4" y="17" width="2" height="2" fill="#f1c29b"/>
+      </g>
+      <g id="buddy-arm-front">
+        <rect x="16" y="11" width="2" height="6" fill="#1e3a8a"/>
+        <rect x="16" y="17" width="2" height="2" fill="#f1c29b"/>
+      </g>
+      <!-- Legs & Cyan-Soled Shoes -->
+      <g id="buddy-leg-left">
+        <rect x="7" y="19" width="3" height="6" fill="#111827"/>
+        <rect x="7" y="25" width="4" height="2" fill="#e2e8f0"/>
+        <rect x="7" y="26" width="4" height="1" fill="#2fe3c9"/>
+      </g>
+      <g id="buddy-leg-right">
+        <rect x="12" y="19" width="3" height="6" fill="#1f2937"/>
+        <rect x="12" y="25" width="4" height="2" fill="#e2e8f0"/>
+        <rect x="12" y="26" width="4" height="1" fill="#2fe3c9"/>
+      </g>
+    </svg>
+  </div>
 </div>
+
+<!-- X-RAY TELEMETRY HUD -->
+<aside id="xray-telemetry-hud">
+  <div style="display:flex; justify-content:space-between; color:#fb7185; border-bottom:1px solid rgba(244,63,94,0.25); padding-bottom:6px; margin-bottom:8px;">
+    <strong>COLLISION_TELEMETRY</strong>
+    <span id="hud-fps" style="color:#34d399; font-weight:700;">60 FPS</span>
+  </div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-bottom:6px;">
+    <div>POS_X: <span id="hud-x" style="color:#2fe3c9;">0</span></div>
+    <div>POS_Y: <span id="hud-y" style="color:#2fe3c9;">0</span></div>
+    <div>VEL_X: <span id="hud-vx" style="color:#fcd34d;">0.0</span></div>
+    <div>VEL_Y: <span id="hud-vy" style="color:#fcd34d;">0.0</span></div>
+  </div>
+  <div style="border-top:1px solid rgba(255,255,255,0.08); padding-top:6px; display:flex; justify-content:space-between;">
+    <span style="color:var(--text-dim);">STATE:</span>
+    <span id="hud-state" style="color:#fda4af; font-weight:700;">IDLE</span>
+  </div>
+  <div style="display:flex; justify-content:space-between; margin-top:4px;">
+    <span style="color:var(--text-dim);">PLATFORM:</span>
+    <span id="hud-platform" style="color:#34d399;">HERO_DECK</span>
+  </div>
+</aside>
 <!-- HEADER / NAV -->
 <header>
 <nav class="wrap">
-<a class="logo" href="#home">
+<a class="logo" href="#home" data-avatar-nav>
 <span class="logo-tag">&lt;/&gt;</span>
 <span>Fhilip<span style="color:var(--cyan-accent)">.dev</span></span>
 </a>
 <div class="nav-links">
-<a class="active" href="#home">Overview</a>
-<a href="#projects">Projects</a>
+<a class="active" href="#home" data-avatar-nav>Overview</a>
+<a href="#projects" data-avatar-nav>Projects</a>
 </div>
 <div class="nav-actions">
+<button id="btn-patrol" type="button" class="hud-toggle-btn active">[AI_PATROL: <strong id="patrol-label">ON</strong>]</button>
+<button id="btn-xray" type="button" class="hud-toggle-btn">[X-RAY: <strong id="xray-label">OFF</strong>]</button>
+<button id="btn-sfx" type="button" class="hud-toggle-btn">[SFX: <strong id="sfx-label">OFF</strong>]</button>
 <div class="status-pill">
 <span class="status-dot"></span>
 <span>Open to Internships</span>
 </div>
-<a class="btn btn-outline" href="#contact" style="padding: 8px 16px; font-size: 0.82rem;">Get in Touch</a>
+<a class="btn btn-outline" href="#contact" data-avatar-nav style="padding: 8px 16px; font-size: 0.82rem;">Get in Touch</a>
 </div>
 </nav>
 </header>
@@ -1153,9 +1407,9 @@ footer .wrap {
 <svg fill="none" height="14" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" style="color:var(--cyan-accent)" viewBox="0 0 24 24" width="14"><path d="m18 16 4-4-4-4"></path><path d="m6 8-4 4 4 4"></path><path d="m14.5 4-5 16"></path></svg>
 <span>Computer Science Student &amp; Developer</span>
 </div>
-<h1 data-platform>&lt;Hello, I'm Fhilip<span class="gradient-text">!&gt;</span><span class="accent-cursor">_</span></h1>
+<h1 data-platform data-platform-name="HERO_TITLE" data-speech="WELCOME! CLICK ANY CARD TO WARP ME THERE.">&lt;Hello, I'm Fhilip<span class="gradient-text">!&gt;</span><span class="accent-cursor">_</span></h1>
 <h2 class="hero-subtitle" style="font-size: clamp(1.4rem, 2.5vw, 1.85rem); font-weight: 700; color: var(--text-main); line-height: 1.3; margin-bottom: 18px;">I study, design, and develop useful software.</h2>
-<p class="hero-description">A third-year Computer Science student at the University of Santo Tomas–Legazpi, building projects while learning how technology solves real problems.</p>
+<p class="hero-description">I’m a third-year Computer Science student at the University of Santo Tomas–Legazpi, focused on building practical, user-centered web applications. I bring ideas to life through thoughtful interface design, dependable development, and a commitment to continuous learning.</p>
 <div class="hero-actions">
 <a class="btn btn-primary" href="#projects">
 <span>Explore Featured Projects</span>
@@ -1163,7 +1417,7 @@ footer .wrap {
 </a>
 <a class="btn btn-ghost" href="#contact">
 <span>Contact Me</span>
-</a>aca
+</a>
 </div>
 <!-- Tech Stack Ticker -->
 <div class="hero-stack">
@@ -1191,13 +1445,10 @@ footer .wrap {
 <div class="wrap">
 <div class="section-header">
 <div>
-<div class="section-label">
-<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="14"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-</div>
-<h2 class="section-title" data-platform>Projects Designed</h2>
+<h2 class="section-title" data-scramble>Projects Designed</h2>
 </div>
 <div class="section-actions">
-<a class="btn btn-ghost" href="#" style="font-size:0.8rem; font-family:var(--mono);">
+<a class="btn btn-ghost" href="https://github.com/Laxradil?tab=repositories" target="_blank" rel="noopener noreferrer" style="font-size:0.8rem; font-family:var(--mono);">
 <span>github.com/repositories</span>
 <svg fill="none" height="12" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="12"><path d="M7 17L17 7M17 7H7M17 7V17"></path></svg>
 </a>
@@ -1205,53 +1456,9 @@ footer .wrap {
 </div>
 <div class="projects-bento">
 <!-- FEATURED CARD #1: QR Attendance System -->
-<article class="project-card featured" data-platform>
-<!-- Visual preview / browser frame -->
+<article class="project-card featured" data-platform data-platform-name="QR_ATTENDANCE" data-speech="ANTI-PROXY QR + SUPABASE REALTIME SYNC!">
 <div class="project-visual">
-<div class="mockup-window">
-<div class="mockup-bar">
-<div class="terminal-dots">
-<span class="tdot red"></span>
-<span class="tdot yellow"></span>
-<span class="tdot green"></span>
-</div>
-<div class="mockup-address">https://attendance-system.internal/dashboard</div>
-</div>
-<div class="mockup-content">
-<!-- Rich Mock UI -->
-<div class="qr-ui-canvas">
-<div class="qr-sidebar">
-<div class="qr-nav-item active"></div>
-<div class="qr-nav-item"></div>
-<div class="qr-nav-item"></div>
-<div class="qr-nav-item"></div>
-</div>
-<div class="qr-main-ui">
-<div class="qr-stats-row">
-<div class="qr-mini-card">
-<div class="val">98.2%</div>
-<div class="lbl">Present Rate</div>
-</div>
-<div class="qr-mini-card">
-<div class="val">1,420</div>
-<div class="lbl">Total Scans</div>
-</div>
-<div class="qr-mini-card">
-<div class="val">Active</div>
-<div class="lbl">Scanner</div>
-</div>
-</div>
-<div class="qr-scanner-box">
-<div class="qr-target-icon">
-<div class="qr-scan-line"></div>
-<svg fill="none" height="24" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="24"><rect height="6" rx="1" width="6" x="3" y="3"></rect><rect height="6" rx="1" width="6" x="15" y="3"></rect><rect height="6" rx="1" width="6" x="3" y="15"></rect><path d="M15 15h2v2h-2z"></path><path d="M19 19h2v2h-2z"></path></svg>
-</div>
-<span style="font-family:var(--mono); font-size:0.65rem; color:var(--cyan-accent);">REALTIME QR VERIFICATION</span>
-</div>
-</div>
-</div>
-</div>
-</div>
+<img class="project-screenshot" src="/images/qr-attendance-dashboard.png" alt="QR Attendance System student dashboard">
 </div>
 <!-- Content Details -->
 <div class="project-details">
@@ -1308,12 +1515,12 @@ footer .wrap {
 <!-- SUBGRID: 2 Column Bento for Project #2 & #3 -->
 <div class="projects-subgrid">
 <!-- PROJECT #2: LibraryHub -->
-<article class="project-card subgrid-card" data-platform>
+<article class="project-card subgrid-card" data-platform data-platform-name="LIBRARY_HUB" data-speech="LARAVEL 12 + RBAC CATALOG WORKFLOWS!">
 <div class="subgrid-visual"><div style="width: 100%; height: 100%; position: relative; overflow: hidden; background: rgb(6, 20, 35); display: flex; align-items: center; justify-content: center; padding: 10px;"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuBuXVa7jRWVk3-YDKzAI24i7jxxj5iu_C9L3vgQbds_zMjLY6iWT22c-rABxPaenDck3SS6NXoKF3GZUnqCRmccHTK5N-T2rkfBipNUe4bj8mIjGIezr3IyfMGv1lXZBFV0Ic1Gikrn-fGci7u-BULr6KXbk4tYuEOdOcX-tPrySBa5NLHg_kzQQ7wLxivoWq6ELVEjxI8nPEHZJ5uc-WyvsCC2HAwgEnlxv6P_72d_gZ-qzlk_XmAhmw" alt="LibraryHub Books Catalog Interface" class="project-thumb-img" style="width: 100%; height: 100%; object-fit: cover; object-position: top center; border-radius: 8px; border: 1px solid rgba(47, 227, 201, 0.2); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); transition: transform 0.3s ease;"><div style="position: absolute; top: 18px; right: 18px; background: rgba(5, 15, 26, 0.85); border: 1px solid rgba(47, 227, 201, 0.35); backdrop-filter: blur(8px); color: var(--cyan-accent); font-family: var(--mono); font-size: 0.68rem; padding: 3px 8px; border-radius: 4px; pointer-events: none;">Live Catalog</div></div></div>
 <div class="subgrid-details"><div class="project-eyebrow"><span class="category-badge">Web Application</span><span class="project-role">Digital Library System</span></div><h3 style="font-size: 1.45rem; color: rgb(255, 255, 255); margin-bottom: 10px;">LibraryHub Catalog &amp; Management System</h3><p style="color: var(--text-muted); font-size: 0.9rem; flex-grow: 1; margin-bottom: 18px;">A responsive online library platform featuring real-time genre filtering, recently released curated book showcase, and multi-tier user access. Built with Laravel 12 and PHP 8.2 with role-based features for book browsing, contributor submissions, and admin approval workflows.</p><div class="tech-tags" style="margin-bottom: 20px;"><span class="tech-tag">Laravel 12</span><span class="tech-tag">PHP 8.2</span><span class="tech-tag">Tailwind CSS</span><span class="tech-tag">Alpine.js</span><span class="tech-tag">SQLite</span><span class="tech-tag">Blade</span></div><div class="project-footer"><a class="project-link-cta" href="#"><span>Explore Architecture</span><svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="14"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></a><a class="github-icon-btn" href="https://github.com/Laxradil/library-system" target="_blank" rel="noopener noreferrer">Source</a></div></div>
 </article>
 <!-- PROJECT #3: Data Structures & Algorithms Project -->
-<article class="project-card subgrid-card" data-platform><div class="subgrid-visual"><div class="dsa-visual-preview" style="background: radial-gradient(circle at 50% 40%, rgba(47, 227, 201, 0.12) 0%, rgba(6, 20, 35, 0.95) 75%), #061423; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; position: relative; border-color: rgba(47, 227, 201, 0.25); overflow: hidden;"><div style="position: absolute; inset: 0; background: linear-gradient(135deg, rgba(47, 227, 201, 0.05) 0%, transparent 60%); pointer-events: none;"></div><div style="position: relative; display: flex; align-items: center; justify-content: center;"><div style="position: absolute; width: 64px; height: 64px; border-radius: 50%; background: radial-gradient(circle, rgba(47, 227, 201, 0.25) 0%, transparent 70%); filter: blur(8px);"></div><div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(14, 38, 64, 0.9); border: 1.5px solid var(--cyan-accent); display: grid; place-items: center; box-shadow: 0 0 20px rgba(47, 227, 201, 0.35); position: relative; z-index: 1;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--cyan-accent);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg></div></div><div style="text-align: center; position: relative; z-index: 1;"><div style="font-family: var(--mono); font-size: 0.76rem; font-weight: 700; letter-spacing: 0.12em; color: #fff; text-transform: uppercase;">The Digital Shield</div><div style="font-family: var(--mono); font-size: 0.62rem; color: var(--cyan-accent); margin-top: 2px;">Threat Recognition &amp; Phishing Awareness Website</div></div><div style="display: flex; gap: 8px; position: relative; z-index: 1;"><span style="font-family: var(--mono); font-size: 0.62rem; color: var(--text-dim); background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); padding: 2px 7px; border-radius: 4px;">PhishBait Gallery</span><span style="font-family: var(--mono); font-size: 0.62rem; color: var(--cyan-accent); background: rgba(47, 227, 201, 0.08); border: 1px solid rgba(47, 227, 201, 0.2); padding: 2px 7px; border-radius: 4px;">Red Flag Detection</span></div></div></div><div class="subgrid-details"><div class="project-eyebrow"><span class="category-badge">Interactive Cybersecurity Platform</span><span class="project-role">Educational Platform</span></div><h3 style="font-size:1.45rem; color:#fff; margin-bottom:10px;">The Digital Shield</h3><p style="color:var(--text-muted); font-size:0.9rem; flex-grow:1; margin-bottom:18px;">An interactive phishing awareness and digital threat recognition platform. Features an authentic vs deceptive phishing email comparison lab, simulated scam gallery (bank alerts, fake scholarships, password expiration traps), prevention guides, and infographic security breakdowns.</p><div class="tech-tags" style="margin-bottom:20px;"><span class="tech-tag">HTML5</span><span class="tech-tag">CSS3</span><span class="tech-tag">JavaScript</span><span class="tech-tag">Cybersecurity</span><span class="tech-tag">Phishing Analysis</span><span class="tech-tag">UI/UX Design</span></div><div class="project-footer"><a class="project-link-cta" href="/web_shield/" target="_blank" rel="noopener noreferrer"><span>Explore Security Hub</span><svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="14"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></a></div></div></article>
+<article class="project-card subgrid-card" data-platform data-platform-name="DIGITAL_SHIELD" data-speech="SPOT THE PHISHING RED FLAGS!"><div class="subgrid-visual"><div class="dsa-visual-preview" style="background: radial-gradient(circle at 50% 40%, rgba(47, 227, 201, 0.12) 0%, rgba(6, 20, 35, 0.95) 75%), #061423; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; position: relative; border-color: rgba(47, 227, 201, 0.25); overflow: hidden;"><div style="position: absolute; inset: 0; background: linear-gradient(135deg, rgba(47, 227, 201, 0.05) 0%, transparent 60%); pointer-events: none;"></div><div style="position: relative; display: flex; align-items: center; justify-content: center;"><div style="position: absolute; width: 64px; height: 64px; border-radius: 50%; background: radial-gradient(circle, rgba(47, 227, 201, 0.25) 0%, transparent 70%); filter: blur(8px);"></div><div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(14, 38, 64, 0.9); border: 1.5px solid var(--cyan-accent); display: grid; place-items: center; box-shadow: 0 0 20px rgba(47, 227, 201, 0.35); position: relative; z-index: 1;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--cyan-accent);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg></div></div><div style="text-align: center; position: relative; z-index: 1;"><div style="font-family: var(--mono); font-size: 0.76rem; font-weight: 700; letter-spacing: 0.12em; color: #fff; text-transform: uppercase;">The Digital Shield</div><div style="font-family: var(--mono); font-size: 0.62rem; color: var(--cyan-accent); margin-top: 2px;">Threat Recognition &amp; Phishing Awareness Website</div></div><div style="display: flex; gap: 8px; position: relative; z-index: 1;"><span style="font-family: var(--mono); font-size: 0.62rem; color: var(--text-dim); background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); padding: 2px 7px; border-radius: 4px;">PhishBait Gallery</span><span style="font-family: var(--mono); font-size: 0.62rem; color: var(--cyan-accent); background: rgba(47, 227, 201, 0.08); border: 1px solid rgba(47, 227, 201, 0.2); padding: 2px 7px; border-radius: 4px;">Red Flag Detection</span></div></div></div><div class="subgrid-details"><div class="project-eyebrow"><span class="category-badge">Interactive Cybersecurity Platform</span><span class="project-role">Educational Platform</span></div><h3 style="font-size:1.45rem; color:#fff; margin-bottom:10px;">The Digital Shield</h3><p style="color:var(--text-muted); font-size:0.9rem; flex-grow:1; margin-bottom:18px;">An interactive phishing awareness and digital threat recognition platform. Features an authentic vs deceptive phishing email comparison lab, simulated scam gallery (bank alerts, fake scholarships, password expiration traps), prevention guides, and infographic security breakdowns.</p><div class="tech-tags" style="margin-bottom:20px;"><span class="tech-tag">HTML5</span><span class="tech-tag">CSS3</span><span class="tech-tag">JavaScript</span><span class="tech-tag">Cybersecurity</span><span class="tech-tag">Phishing Analysis</span><span class="tech-tag">UI/UX Design</span></div><div class="project-footer"><a class="project-link-cta" href="/web_shield/" target="_blank" rel="noopener noreferrer"><span>Explore Security Hub</span><svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="14"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></a></div></div></article>
 </div>
 </div>
 </div>
@@ -1323,7 +1530,7 @@ footer .wrap {
 <div class="wrap">
 <div class="section-label">
 </div>
-<h2 class="section-title" data-platform style="margin-bottom:32px;">Technical Certifications</h2>
+<h2 class="section-title" data-scramble style="margin-bottom:32px;">Technical Certifications</h2>
 <div class="certs-grid">
 <div class="cert-card" data-platform>
 <b>Introduction to Cybersecurity</b>
@@ -1343,11 +1550,8 @@ footer .wrap {
 <!-- EDUCATION -->
 <section class="legacy-section" id="education">
 <div class="wrap">
-<div class="section-label">
-<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="14"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
-</div>
-<h2 class="section-title" data-platform style="margin-bottom:32px;">Education</h2>
-<div class="edu-row">
+<h2 class="section-title" data-scramble style="margin-bottom:32px;">Education</h2>
+<div class="edu-row" data-platform data-platform-name="EDUCATION" data-speech="BSCS 3RD YEAR AT UST-LEGAZPI!">
 <div class="yr">2023 – Present</div>
 <div>
 <h3>Bachelor of Science in Computer Science</h3>
@@ -1367,7 +1571,7 @@ footer .wrap {
 </div>
 <h2>Learning how thoughtful technology can solve real problems.</h2>
 <p style="color:var(--text-muted); margin-bottom:20px; line-height:1.7;">
-          I'm Fhilip, a third-year Computer Science student at the University of Santo Tomas–Legazpi. I design and develop software while exploring how technology directly simplifies everyday organizational tasks. Currently expanding expertise in backend services, modern frontends, and robust system architecture.
+          I'm Fhilip, a third-year Computer Science student at the University of Santo Tomas–Legazpi with a strong interest in creating useful, well-crafted software. I enjoy turning real-world needs into intuitive digital experiences, from designing clear interfaces to developing the systems behind them. I'm continuing to grow my skills in backend services, modern frontends, and software architecture through hands-on projects.
         </p>
 <div class="hero-stack-pills">
 <span class="stack-chip">JavaScript</span>
@@ -1384,14 +1588,14 @@ footer .wrap {
 </div>
 </div>
 <div>
-<div style="position: relative; max-width: 380px; margin: 0px auto;"><div style="position: absolute; -webkit-filter: blur(45px); filter: blur(45px); inset: -12px; background: radial-gradient(circle, rgba(47, 227, 201, 0.18) 0%, rgba(56, 189, 248, 0.1) 50%, transparent 75%); border-radius: 32px; pointer-events: none; z-index: 0;"></div><div style="position: relative; z-index: 1; background: rgba(10, 25, 42, 0.85); border: 1px solid rgba(47, 227, 201, 0.28); border-radius: 24px; overflow: hidden; box-shadow: 0 20px 48px -10px rgba(0, 0, 0, 0.75), 0 0 32px rgba(47, 227, 201, 0.12); backdrop-filter: blur(20px);"><div style="position: relative; width: 100%; aspect-ratio: 4/4.5; overflow: hidden; background: #061523;"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCvrl2fVEpbgvtTWD4tksskjNZvAbCBLNN8SIOI6VeldcS9-RGByhkpmoA6nnwoX-_ZGOgLTaYMN8NTVDe0VxwoeUZWRvQJEBFn-fzBC9IBWVZkMkfRCSO6mC4HxKvy01VRp9PQlzqoMAGXVxQcd55R4KL6_uHttH4aa7F3WSBp9DefDK4tWSIvBL-Ninh9HgZkUtrkGmT0hAHUpl4WQUkGpRC2Q2k3UiiCxCkS0emyiVZO4ez12kdXgA" alt="Fhilip Portrait" style="width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; filter: contrast(1.03) saturate(1.05); transition: transform 0.4s ease;"><div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(7, 19, 32, 0.95) 0%, rgba(7, 19, 32, 0.3) 45%, transparent 70%); pointer-events: none;"></div><div style="position: absolute; top: 14px; right: 14px; background: rgba(5, 14, 25, 0.82); border: 1px solid rgba(47, 227, 201, 0.3); backdrop-filter: blur(12px); border-radius: 9999px; padding: 5px 12px; display: inline-flex; align-items: center; gap: 7px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: var(--cyan-accent); box-shadow: 0 0 8px var(--cyan-accent);"></span><span style="font-family: var(--mono); font-size: 0.72rem; color: #fff; font-weight: 500;">Open for roles</span></div><div style="position: absolute; top: 14px; left: 14px; background: rgba(5, 14, 25, 0.75); border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(10px); border-radius: 8px; padding: 4px 10px; font-family: var(--mono); font-size: 0.68rem; color: var(--text-dim); display: flex; align-items: center; gap: 6px;"><span style="color: var(--cyan-accent);">//</span> ust-legazpi</div><div style="position: absolute; bottom: 16px; left: 20px; right: 20px;"><h3 style="font-size: 1.45rem; font-weight: 700; color: #ffffff; letter-spacing: -0.02em; line-height: 1.2;">Fhilip</h3><p style="font-family: var(--mono); font-size: 0.8rem; color: var(--cyan-accent); margin-top: 3px;">CS Student &amp; Web Developer</p></div></div><div style="padding: 16px 20px 20px; border-top: 1px solid rgba(47, 227, 201, 0.12); display: flex; flex-direction: column; gap: 12px; background: rgba(6, 17, 30, 0.95);"><div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-family: var(--mono); font-size: 0.74rem; color: var(--text-dim); display: flex; align-items: center; gap: 6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>UST–Legazpi, Philippines</span><span style="font-family: var(--mono); font-size: 0.72rem; color: var(--cyan-accent); background: rgba(47, 227, 201, 0.1); border: 1px solid rgba(47, 227, 201, 0.2); border-radius: 6px; padding: 2px 8px;">Class of 2026</span></div></div></div></div>
+<div style="position: relative; max-width: 380px; margin: 0px auto;"><div style="position: absolute; -webkit-filter: blur(45px); filter: blur(45px); inset: -12px; background: radial-gradient(circle, rgba(47, 227, 201, 0.18) 0%, rgba(56, 189, 248, 0.1) 50%, transparent 75%); border-radius: 32px; pointer-events: none; z-index: 0;"></div><div data-platform data-platform-name="PROFILE_CARD" data-speech="BASED IN LEGAZPI CITY, PH!" style="position: relative; z-index: 1; background: rgba(10, 25, 42, 0.85); border: 1px solid rgba(47, 227, 201, 0.28); border-radius: 24px; overflow: hidden; box-shadow: 0 20px 48px -10px rgba(0, 0, 0, 0.75), 0 0 32px rgba(47, 227, 201, 0.12); backdrop-filter: blur(20px);"><div style="position: relative; width: 100%; aspect-ratio: 4/4.5; overflow: hidden; background: #061523;"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCvrl2fVEpbgvtTWD4tksskjNZvAbCBLNN8SIOI6VeldcS9-RGByhkpmoA6nnwoX-_ZGOgLTaYMN8NTVDe0VxwoeUZWRvQJEBFn-fzBC9IBWVZkMkfRCSO6mC4HxKvy01VRp9PQlzqoMAGXVxQcd55R4KL6_uHttH4aa7F3WSBp9DefDK4tWSIvBL-Ninh9HgZkUtrkGmT0hAHUpl4WQUkGpRC2Q2k3UiiCxCkS0emyiVZO4ez12kdXgA" alt="Fhilip Portrait" style="width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; filter: contrast(1.03) saturate(1.05); transition: transform 0.4s ease;"><div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(7, 19, 32, 0.95) 0%, rgba(7, 19, 32, 0.3) 45%, transparent 70%); pointer-events: none;"></div><div style="position: absolute; top: 14px; right: 14px; background: rgba(5, 14, 25, 0.82); border: 1px solid rgba(47, 227, 201, 0.3); backdrop-filter: blur(12px); border-radius: 9999px; padding: 5px 12px; display: inline-flex; align-items: center; gap: 7px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: var(--cyan-accent); box-shadow: 0 0 8px var(--cyan-accent);"></span><span style="font-family: var(--mono); font-size: 0.72rem; color: #fff; font-weight: 500;">Open for roles</span></div><div style="position: absolute; top: 14px; left: 14px; background: rgba(5, 14, 25, 0.75); border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(10px); border-radius: 8px; padding: 4px 10px; font-family: var(--mono); font-size: 0.68rem; color: var(--text-dim); display: flex; align-items: center; gap: 6px;"><span style="color: var(--cyan-accent);">//</span> ust-legazpi</div><div style="position: absolute; bottom: 16px; left: 20px; right: 20px;"><h3 style="font-size: 1.45rem; font-weight: 700; color: #ffffff; letter-spacing: -0.02em; line-height: 1.2;">Fhilip</h3><p style="font-family: var(--mono); font-size: 0.8rem; color: var(--cyan-accent); margin-top: 3px;">CS Student &amp; Web Developer</p></div></div><div style="padding: 16px 20px 20px; border-top: 1px solid rgba(47, 227, 201, 0.12); display: flex; flex-direction: column; gap: 12px; background: rgba(6, 17, 30, 0.95);"><div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-family: var(--mono); font-size: 0.74rem; color: var(--text-dim); display: flex; align-items: center; gap: 6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>UST–Legazpi, Philippines</span><span style="font-family: var(--mono); font-size: 0.72rem; color: var(--cyan-accent); background: rgba(47, 227, 201, 0.1); border: 1px solid rgba(47, 227, 201, 0.2); border-radius: 6px; padding: 2px 8px;">Class of 2026</span></div></div></div></div>
 </div>
 </div>
 </section>
 <!-- CTA -->
 <section class="legacy-section" id="contact" style="padding-top:40px;">
 <div class="wrap">
-<div class="cta-box">
+<div class="cta-box" data-platform data-platform-name="CONTACT_CTA" data-speech="LET'S BUILD SOMETHING TOGETHER!">
 <div class="status-pill" style="margin-bottom:16px;">
 <span class="status-dot"></span>
 <span>Let's collaborate</span>
